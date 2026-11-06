@@ -30,7 +30,8 @@ Team Echo **요청 기록 재생**(echo-infra 인프라 12.4)을 보여 주는 �
 
 ## 배포 (운영, 순서 중요)
 
-1. Echo 플랫폼에 서비스로 등록하고 두 환경(aws-tokyo · gcp-seoul)에 배포 — 변수 `DATABASE_URL` 은 echo-demo-app 과 같은 값. 뜨면서 두 DB 에 `shop` 표가 생긴다
+0. **관리자가 두 DB 에 한 번**: `CREATE SCHEMA IF NOT EXISTS shop AUTHORIZATION app_rw;` — 앱 계정은 DB 에 스키마를 만들 권한이 없다
+1. Echo 플랫폼에 서비스로 등록하고 두 환경(aws-tokyo · gcp-seoul)에 배포 — 변수 `DATABASE_URL` 은 echo-demo-app 과 같은 값(**두 환경 모두** 넣는다, 없으면 앱이 바로 멈춘다). 뜨면서 두 DB 의 `shop` 스키마에 표가 생긴다
 2. **원본(도쿄 A)에만** 초기 재고: `sql/seed.sql`
 3. **사본(서울 B)** 구독에 새 표를 넣는다: `ALTER SUBSCRIPTION echo_sub REFRESH PUBLICATION;` → 초기 재고가 복제돼 온다
 4. 확인: 두 환경 `/api/summary` 의 재고가 같다

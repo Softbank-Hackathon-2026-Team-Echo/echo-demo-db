@@ -52,3 +52,24 @@ def test_schema_sql_twice_is_safe(admin_conn: psycopg.Connection) -> None:
         "SELECT count(*) FROM pg_indexes WHERE indexname = 'orders_request_id_key'"
     ).fetchone()
     assert idx == (1,)
+
+
+def test_schema_sql_runs_without_database_create_right(admin_conn: psycopg.Connection) -> None:
+    """운영 app_rw 처럼 DB CREATE 권한이 없는 소유자로도 다시 돌릴 수 있다(스키마가 있을 때)."""
+    admin_conn.execute("DROP SCHEMA IF EXISTS shop CASCADE")
+    admin_conn.execute("DROP ROLE IF EXISTS shop_app_test")
+    admin_conn.execute("CREATE ROLE shop_app_test")
+    try:
+        admin_conn.execute("CREATE SCHEMA shop AUTHORIZATION shop_app_test")
+        admin_conn.execute("REVOKE CREATE ON DATABASE demo FROM PUBLIC")
+        with admin_conn.transaction():
+            admin_conn.execute("SET LOCAL ROLE shop_app_test")
+            admin_conn.execute(read_schema_sql().encode())
+            admin_conn.execute(read_schema_sql().encode())
+        owners = admin_conn.execute(
+            "SELECT string_agg(tableowner, ',') FROM pg_tables WHERE schemaname = 'shop'"
+        ).fetchone()
+        assert owners == ("shop_app_test,shop_app_test",)
+    finally:
+        admin_conn.execute("DROP SCHEMA IF EXISTS shop CASCADE")
+        admin_conn.execute("DROP ROLE IF EXISTS shop_app_test")

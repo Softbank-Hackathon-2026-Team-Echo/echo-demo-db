@@ -2,7 +2,16 @@
 -- 논리 복제는 DDL 을 옮기지 않으므로 두 DB(원본·사본) 모두 이 파일을 먼저 적용하고, 사본 구독을 REFRESH 한다(README "배포").
 -- 시퀀스를 쓰지 않는다(주문 id = UUID): 논리 복제는 시퀀스 값을 옮기지 않아 승격 뒤 번호가 겹칠 수 있다.
 -- 초기 재고(seed)는 여기 넣지 않는다: 사본에도 행이 생기면 원본의 같은 행이 복제될 때 키가 겹쳐 구독이 멈춘다 → sql/seed.sql 을 원본에만.
-CREATE SCHEMA IF NOT EXISTS shop;
+-- 스키마가 없을 때만 만든다. `CREATE SCHEMA IF NOT EXISTS` 는 이미 있어도 DB 의 CREATE 권한을 먼저 검사해,
+-- 운영 앱 계정(app_rw, DB CREATE 권한 없음)으로는 늘 실패한다(11/6 운영 배포에서 확인).
+-- 운영에서는 관리자가 한 번 `CREATE SCHEMA shop AUTHORIZATION app_rw` 로 만들어 둔다(README "배포").
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_namespace WHERE nspname = 'shop') THEN
+    CREATE SCHEMA shop;
+  END IF;
+END
+$$;
 
 CREATE TABLE IF NOT EXISTS shop.items (
   sku           text PRIMARY KEY,
